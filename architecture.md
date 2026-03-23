@@ -1,72 +1,105 @@
-# 醫院看診追蹤與導航預測：系統架構設計 (Map Integration & Architecture)
+# 醫院叫號監控系統：架構設計文件 v2
 
-本文件概述了將「看診定時監控邏輯 (Polling Engine)」與「路程時間動態判斷 (Traffic-Aware ETA)」整合的技術架構與落地方案。
+## 本次優化重點
 
----
+### 前端 index.html
+| 問題（v1）| 解決（v2）|
+|---|---|
+| 診間資料為假資料 `mockClinics` | 真實串接醫院網址，用 CORS proxy 抓取 |
+| 按下追蹤只跑數字動畫 | 真正每 N 秒輪詢一次醫院頁面 |
+| 沒有推播通知 | 整合 Web Notification API，鎖屏也能收到 |
+| 沒有 ETA 預估 | 根據號碼歷史自動計算每號速度 |
+| 沒有跳號偵測 | 偵測到 10 號以上跳號時警告 |
+| 沒有聲音警報 | 用 AudioContext 產生提示音 |
 
-## 1. 架構總覽
-
-整個服務建議拆分為 **前端 UI (Client App)** 與 **後端監控服務 (Worker/Cron Server)** 兩部分，透過 API 溝通。
-- **Client App (如 Flutter/React Native/Web):** 負責讓使用者選擇診間、輸入號碼、並請求開啟訂閱通知。
-- **後端監控服務 (Node.js/Python 伺服器):** 負責 24 小時執行網頁爬蟲、獲取 Google Maps 即時路況，並判斷何時發送 Push Notification (推播通知) 給使用者。
-
----
-
-## 2. 背景定時監控 (Polling Engine) 落地方案
-
-行動裝置的作業系統（iOS 尤其是 Android）為了省電，經常會強制中止長駐在背景的應用程序。因此，**「不建議將高頻率掃描的邏輯直接寫在手機 App 的背景執行的機制中」**。
-
-### 推薦方案：Cloud-Based Polling (雲端輪詢 + 推播)
-1. **觸發端：** 使用者在 App 端點擊「開始追蹤」，App 將 Device Token (FCM Token)、使用者當前 GPS 座標、目標診間ID、使用者號碼發送給後端資料庫 (如 Firebase/PostgreSQL)。
-2. **處理端：** 後端伺服器 (如 Vercel Cron, Render, 或自建 Node.js Worker) 每 2~3 分鐘執行一次任務。
-3. **爬取邏輯：** 爬蟲抓取 `https://www.aftygh.gov.tw/opd/` 獲取最新號碼。
-4. **過濾警報：**
-   - **突然跳號處理：** 若上一次號碼與這次抓到的號碼差距過大 (例如 10 號直接跳 40 號)，後端應在此次輪詢立刻拉取 Google Maps 重新計算時間，不可等待下一輪。
-   - **無效狀態防護：** 若爬蟲 Timeout，捕獲例外 (Try-Catch)，後端保留上次資料並不做任何干涉，直到下次輪詢成功。
+### 爬蟲 scraper.py
+| 問題（v1）| 解決（v2）|
+|---|---|
+| CSS selector 為假的 `.clinic-card` | 整合 20+ 個真實醫院 selector 規則 |
+| 只有靜態抓取 | 靜態失敗自動 fallback 到 Playwright 動態模式 |
+| 沒有 ETA 計算 | QueueMonitor 類別內建歷史速度計算 |
+| 監控邏輯寫死 | 命令列參數化，支援任意醫院網址 |
 
 ---
 
-## 3. 路程時間動態判斷 (Traffic-Aware ETA)
+## 系統架構
 
-核心機制是透過整合 **Google Maps API (Distance Matrix API)** 來實現基於「目前車況」的最精準預測。
-
-### 流程拆解
-當 `剩餘人數 <= 一定閥值 (例如 10人)` 時，伺服器啟動 Google Maps API 呼叫，避免過早呼叫浪費 API 額度。
-
-**呼叫範例 (Node.js/Axios 概念):**
-```javascript
-const origin = `${userLat},${userLng}`; // 來自 App 的 GPS 座標
-const destination = "24.8576,121.2185"; // 國軍桃園總醫院座標
-const apiKey = "YOUR_GOOGLE_MAPS_API_KEY";
-
-const url = `https://maps.googleapis.com/maps/api/distancematrix/json?origins=${origin}&destinations=${destination}&mode=driving&departure_time=now&key=${apiKey}`;
-
-// 解析回應中的 duration_in_traffic
-// example: 1200 seconds (20 mins)
+```
+┌─────────────────────────────────────┐
+│           手機瀏覽器 / App           │
+│  index.html                         │
+│  ├── 設定：醫院URL、我的號碼         │
+│  ├── setInterval 每 N 秒呼叫         │
+│  │   └── fetch(CORS proxy)           │
+│  │       └── 解析 HTML 取得號碼      │
+│  ├── 計算 ETA、剩餘號碼              │
+│  └── 觸發：Notification + 聲音       │
+└──────────────┬──────────────────────┘
+               │ HTTPS
+┌──────────────▼──────────────────────┐
+│         CORS Proxy (暫用)            │
+│  api.allorigins.win                  │
+│  （正式版換成自己的後端 /api/scrape）│
+└──────────────┬──────────────────────┘
+               │ HTTP
+┌──────────────▼──────────────────────┐
+│       醫院即時看診進度網頁            │
+│  https://www.aftygh.gov.tw/opd/      │
+└─────────────────────────────────────┘
 ```
 
-### 預測演算法 (ETA Logic)
+---
 
-假設每位病患平均看診時間為 $T_{avg}$ (例如 4 分鐘)。
+## 爬蟲策略（雙模式）
 
-- **所需總等待時間 ($WaitTime$)** = `剩餘人數 * 4 分鐘`
-- **即時交通路程時間 ($CommuteTime$)** = 來自 Google Maps 的分鐘數
-- **預留緩衝時間 ($BufferTime$)** = 10 分鐘 (找車位、步行到診間的餘裕)
+### 模式 A：靜態（requests + BeautifulSoup）
+- 速度快、資源少
+- 適合伺服器端渲染的醫院頁面
 
-**觸發條件式：**
-```python
-if WaitTime <= (CommuteTime + BufferTime):
-    trigger_push_notification(user_id, "該出門囉！目前路上依路況約需", CommuteTime, "分鐘，預計抵達時剛好輪到您！")
-```
+### 模式 B：動態（Playwright headless）
+- 靜態解析不到號碼時自動啟用
+- 適合 JS 動態渲染頁面（React/Vue 前端）
 
-#### 特殊情境處理 (Edge Cases)
-1. **醫生跳號/患者過多未到 (醫生提早打卡)：**
-   - 解決方法：除了時間條件外，設定一個「絕對底線閾值」。例如「無論家住多近或多遠，只要剩餘人數小於 3 人，無條件發送最強烈等級警報」。
-2. **交通產生突發嚴重壅塞 (車禍等)：**
-   - 解決方法：在剩餘人數低於 15 人時，提高 API 輪詢頻率（例如每 1 分鐘打一次 Google Maps API），動態更新 $CommuteTime$。若預判所需交通時間激增，提早觸發警報。
+### 解析順序
+1. 嘗試已知醫院 CSS selector（20+ 條規則）
+2. 用 regex 全文搜尋（中文/英文叫號字樣）
+3. 啟發式：找頁面上獨立的 1~3 位數數字
 
 ---
 
-## 4. 交付與總結
-- **維護性考量：** 醫院網站若改版，需快速更新爬蟲規則。可考慮採用無頭瀏覽器 (Headless Browser) 如 Playwright 作為備案，以處理依賴複雜 JavaScript 渲染的頁面。
-- **使用者體驗：** 使用 LINE Bot 做為介面也是極佳的替代方案，能免去使用者下載 App，並透過 Webhook 將上述後端架構平滑接軌至 LINE 訊息服務上。
+## 已收錄醫院 Selector
+
+| 醫院系統 | CSS Selector |
+|---|---|
+| 台大系統 | `.current-no`, `.nowNo`, `#nowNo` |
+| 長庚系統 | `.clinicNowNo`, `[id*="NowNo"]` |
+| 馬偕系統 | `[id*="curno"]` |
+| 衛福部/國軍 | `.now_num`, `.call_num`, `.opdNowNo` |
+| 台北聯合 | `.nowno`, `#nowno` |
+
+---
+
+## 命令列使用方式
+
+```bash
+# 安裝依賴
+pip install requests beautifulsoup4 playwright
+playwright install chromium
+
+# 測試是否能抓到號碼
+python scraper.py --url "https://www.aftygh.gov.tw/opd/" --my-number 117 --test
+
+# 開始監控（每60秒，快到5號提醒）
+python scraper.py --url "https://www.aftygh.gov.tw/opd/" --my-number 117 --alert-before 5 --interval 60
+```
+
+---
+
+## 待辦事項（正式產品）
+
+- [ ] 後端 API 伺服器（取代 allorigins CORS proxy）
+- [ ] LINE Bot 推播整合
+- [ ] FCM Push Notification（原生 App）
+- [ ] Google Maps Distance Matrix API 整合
+- [ ] 新增更多醫院 selector 規則
+- [ ] 跳號後自動縮短輪詢間隔
