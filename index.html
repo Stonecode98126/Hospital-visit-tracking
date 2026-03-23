@@ -1,0 +1,387 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>醫院看診即時追蹤</title>
+    <!-- Use Inter font for a modern look -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            /* Glassmorphism Dark Mode Palette */
+            --bg-color: #0f172a;
+            --surface-color: rgba(30, 41, 59, 0.7);
+            --border-color: rgba(255, 255, 255, 0.1);
+            --primary-accent: #3b82f6;
+            --primary-hover: #2563eb;
+            --text-main: #f8fafc;
+            --text-secondary: #94a3b8;
+            --error-color: #ef4444;
+            --success-color: #22c55e;
+            --font-main: 'Inter', sans-serif;
+            --transition-speed: 0.3s;
+        }
+
+        body {
+            margin: 0;
+            padding: 0;
+            font-family: var(--font-main);
+            background: var(--bg-color);
+            background-image: radial-gradient(circle at top right, rgba(59, 130, 246, 0.15), transparent 400px),
+                              radial-gradient(circle at bottom left, rgba(16, 185, 129, 0.1), transparent 400px);
+            background-attachment: fixed;
+            color: var(--text-main);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+        }
+
+        .container {
+            width: 100%;
+            max-width: 480px;
+            padding: 2rem;
+            box-sizing: border-box;
+        }
+
+        /* Glassmorphism Card */
+        .glass-card {
+            background: var(--surface-color);
+            backdrop-filter: blur(16px);
+            -webkit-backdrop-filter: blur(16px);
+            border: 1px solid var(--border-color);
+            border-radius: 24px;
+            padding: 2.5rem 2rem;
+            box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
+            animation: slideUp 0.6s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+            opacity: 0;
+            transform: translateY(20px);
+        }
+
+        @keyframes slideUp {
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        h1 {
+            font-size: 1.75rem;
+            font-weight: 700;
+            margin-top: 0;
+            margin-bottom: 0.5rem;
+            text-align: center;
+            background: linear-gradient(135deg, #fff, #94a3b8);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        p.subtitle {
+            text-align: center;
+            color: var(--text-secondary);
+            font-size: 0.95rem;
+            margin-bottom: 2rem;
+        }
+
+        /* Section Containers */
+        .section {
+            margin-bottom: 2rem;
+            opacity: 0;
+            transform: translateY(10px);
+            animation: fadeIn 0.5s ease forwards;
+        }
+
+        .section:nth-child(1) { animation-delay: 0.2s; }
+        .section:nth-child(2) { animation-delay: 0.4s; }
+        .section:nth-child(3) { animation-delay: 0.6s; }
+
+        @keyframes fadeIn {
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        label {
+            display: block;
+            font-size: 0.9rem;
+            font-weight: 600;
+            margin-bottom: 0.75rem;
+            color: var(--text-secondary);
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+        }
+
+        /* Clinic Selection Buttons Grid */
+        .clinic-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 1rem;
+        }
+
+        .clinic-btn {
+            background: rgba(255, 255, 255, 0.05);
+            border: 1px solid var(--border-color);
+            color: var(--text-main);
+            padding: 1rem;
+            border-radius: 12px;
+            font-size: 1rem;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all var(--transition-speed);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            gap: 0.25rem;
+        }
+
+        .clinic-btn span.doctor {
+            font-size: 0.75rem;
+            color: var(--text-secondary);
+        }
+
+        .clinic-btn:hover {
+            background: rgba(255, 255, 255, 0.1);
+            transform: translateY(-2px);
+            border-color: rgba(255, 255, 255, 0.2);
+            box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.3);
+        }
+
+        .clinic-btn.active {
+            background: var(--primary-accent);
+            border-color: var(--primary-accent);
+            transform: translateY(-2px);
+            box-shadow: 0 10px 20px -5px rgba(59, 130, 246, 0.5);
+        }
+        
+        .clinic-btn.active span.doctor {
+            color: rgba(255, 255, 255, 0.8);
+        }
+
+        /* Input Field */
+        .input-group {
+            position: relative;
+        }
+
+        input[type="number"] {
+            width: 100%;
+            padding: 1rem 1.25rem;
+            background: rgba(0, 0, 0, 0.2);
+            border: 1px solid var(--border-color);
+            border-radius: 12px;
+            color: var(--text-main);
+            font-size: 1rem;
+            font-family: var(--font-main);
+            box-sizing: border-box;
+            transition: all var(--transition-speed);
+        }
+
+        input[type="number"]:focus {
+            outline: none;
+            border-color: var(--primary-accent);
+            background: rgba(0, 0, 0, 0.4);
+            box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.2);
+        }
+
+        input[type="number"]::placeholder {
+            color: rgba(148, 163, 184, 0.5);
+        }
+
+        /* Action Button */
+        button.action-btn {
+            width: 100%;
+            padding: 1rem;
+            background: linear-gradient(to right, var(--primary-accent), #60a5fa);
+            color: white;
+            border: none;
+            border-radius: 12px;
+            font-size: 1.05rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all var(--transition-speed);
+            position: relative;
+            overflow: hidden;
+            box-shadow: 0 10px 20px -5px rgba(59, 130, 246, 0.4);
+        }
+
+        button.action-btn::after {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: -100%;
+            width: 50%;
+            height: 100%;
+            background: linear-gradient(to right, transparent, rgba(255,255,255,0.2), transparent);
+            transform: skewX(-20deg);
+            transition: all 0.5s;
+        }
+
+        button.action-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 15px 25px -5px rgba(59, 130, 246, 0.5);
+        }
+
+        button.action-btn:hover::after {
+            left: 150%;
+        }
+
+        button.action-btn:active {
+            transform: translateY(0);
+        }
+
+        /* Status Indicator */
+        .status-card {
+            display: none;
+            margin-top: 2rem;
+            padding: 1.5rem;
+            background: rgba(34, 197, 94, 0.1);
+            border: 1px solid rgba(34, 197, 94, 0.2);
+            border-radius: 12px;
+            text-align: center;
+            animation: slideUp 0.4s ease forwards;
+        }
+
+        .status-card h4 {
+            margin: 0 0 0.5rem 0;
+            color: var(--success-color);
+            font-size: 1.1rem;
+        }
+
+        .status-card p {
+            margin: 0;
+            color: var(--text-secondary);
+            font-size: 0.9rem;
+            line-height: 1.5;
+        }
+
+        .status-value {
+            font-size: 2rem;
+            font-weight: 700;
+            color: var(--text-main);
+            margin: 0.5rem 0;
+            font-variant-numeric: tabular-nums;
+        }
+
+    </style>
+</head>
+<body>
+
+    <div class="container">
+        <div class="glass-card">
+            <h1>國軍桃園總醫院</h1>
+            <p class="subtitle">AI 看診動態追蹤與導航預測</p>
+
+            <div class="section" style="animation-delay: 0.1s;">
+                <label>1. 選擇看診診間</label>
+                <div class="clinic-grid" id="clinicGrid">
+                    <!-- Dynamic Clinic Buttons Generated via JS -->
+                </div>
+            </div>
+
+            <div class="section" style="animation-delay: 0.2s;">
+                <label for="ticketNumber">2. 輸入您的掛號號碼</label>
+                <div class="input-group">
+                    <input type="number" id="ticketNumber" placeholder="例如: 45" min="1">
+                </div>
+            </div>
+
+            <div class="section" style="animation-delay: 0.3s;">
+                <button class="action-btn" id="startBtn" onclick="startTracking()">開始智能追蹤</button>
+            </div>
+
+            <div class="status-card" id="statusCard">
+                <h4>追蹤已啟動</h4>
+                <div class="status-value" id="remainingPeople">等待資料中...</div>
+                <p>將在背景持續監控最新進度，並結合路況於適當時機發送出門提醒通知。</p>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Simulated API response from the scraper
+        const mockClinics = [
+            { id: 'C01', name: '內科 01診', doctor: '王大明', current: 22 },
+            { id: 'C02', name: '外科 03診', doctor: '陳小華', current: 15 },
+            { id: 'C03', name: '眼科 02診', doctor: '林志豪', current: 48 },
+            { id: 'C04', name: '骨科 01診', doctor: '劉醫師', current: 8 }
+        ];
+
+        let selectedClinicId = null;
+
+        // Initialize UI
+        function initUI() {
+            const grid = document.getElementById('clinicGrid');
+            mockClinics.forEach(clinic => {
+                const btn = document.createElement('div');
+                btn.className = 'clinic-btn';
+                btn.onclick = () => selectClinic(clinic.id, btn);
+                btn.innerHTML = `
+                    ${clinic.name}
+                    <span class="doctor">${clinic.doctor}</span>
+                `;
+                grid.appendChild(btn);
+            });
+        }
+
+        // Handle clinic selection
+        function selectClinic(id, element) {
+            selectedClinicId = id;
+            // Remove active class from all
+            document.querySelectorAll('.clinic-btn').forEach(btn => btn.classList.remove('active'));
+            // Add active class to selected
+            element.classList.add('active');
+        }
+
+        // Start tracking action
+        function startTracking() {
+            const ticketInput = document.getElementById('ticketNumber').value;
+            
+            if (!selectedClinicId) {
+                alert('請先選擇一個診間！');
+                return;
+            }
+            if (!ticketInput || ticketInput <= 0) {
+                alert('請輸入有效的掛號號碼！');
+                return;
+            }
+
+            const targetClinic = mockClinics.find(c => c.id === selectedClinicId);
+            const userNumber = parseInt(ticketInput);
+            
+            if (userNumber <= targetClinic.current) {
+                alert('您的號碼已經過號，或目前正在看診中，請盡速前往診間！');
+                return;
+            }
+
+            const remaining = userNumber - targetClinic.current;
+            
+            // UI Feedback
+            const btn = document.getElementById('startBtn');
+            btn.innerHTML = '<span style="opacity:0.8">監控運作中...</span>';
+            btn.style.background = 'var(--success-color)';
+            btn.disabled = true;
+
+            const statusCard = document.getElementById('statusCard');
+            statusCard.style.display = 'block';
+            
+            const remainingElement = document.getElementById('remainingPeople');
+            
+            // Simple number animation
+            let currentDisplay = 0;
+            const interval = setInterval(() => {
+                if (currentDisplay >= remaining) {
+                    clearInterval(interval);
+                    remainingElement.innerHTML = `約剩 <span style="color:var(--primary-accent)">${remaining}</span> 人`;
+                } else {
+                    currentDisplay += 1;
+                    remainingElement.textContent = `計算中 ${currentDisplay}...`;
+                }
+            }, 30);
+        }
+
+        // Run setup on load
+        window.onload = initUI;
+    </script>
+</body>
+</html>
