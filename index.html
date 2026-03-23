@@ -1,387 +1,662 @@
 <!DOCTYPE html>
 <html lang="zh-Hant">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>醫院看診即時追蹤</title>
-    <!-- Use Inter font for a modern look -->
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
-    <style>
-        :root {
-            /* Glassmorphism Dark Mode Palette */
-            --bg-color: #0f172a;
-            --surface-color: rgba(30, 41, 59, 0.7);
-            --border-color: rgba(255, 255, 255, 0.1);
-            --primary-accent: #3b82f6;
-            --primary-hover: #2563eb;
-            --text-main: #f8fafc;
-            --text-secondary: #94a3b8;
-            --error-color: #ef4444;
-            --success-color: #22c55e;
-            --font-main: 'Inter', sans-serif;
-            --transition-speed: 0.3s;
-        }
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+<title>叫號監控器</title>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;500;700;900&family=JetBrains+Mono:wght@400;700&display=swap');
 
-        body {
-            margin: 0;
-            padding: 0;
-            font-family: var(--font-main);
-            background: var(--bg-color);
-            background-image: radial-gradient(circle at top right, rgba(59, 130, 246, 0.15), transparent 400px),
-                              radial-gradient(circle at bottom left, rgba(16, 185, 129, 0.1), transparent 400px);
-            background-attachment: fixed;
-            color: var(--text-main);
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            min-height: 100vh;
-        }
+:root {
+  --bg: #08111f;
+  --card: #0e1e33;
+  --card2: #152540;
+  --border: #1a3050;
+  --accent: #00c6ff;
+  --accent2: #ff7043;
+  --green: #00e676;
+  --yellow: #ffd740;
+  --red: #ff5252;
+  --text: #e4f0f8;
+  --dim: #5a7a95;
+}
 
-        .container {
-            width: 100%;
-            max-width: 480px;
-            padding: 2rem;
-            box-sizing: border-box;
-        }
+* { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
 
-        /* Glassmorphism Card */
-        .glass-card {
-            background: var(--surface-color);
-            backdrop-filter: blur(16px);
-            -webkit-backdrop-filter: blur(16px);
-            border: 1px solid var(--border-color);
-            border-radius: 24px;
-            padding: 2.5rem 2rem;
-            box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
-            animation: slideUp 0.6s cubic-bezier(0.16, 1, 0.3, 1) forwards;
-            opacity: 0;
-            transform: translateY(20px);
-        }
+body {
+  font-family: 'Noto Sans TC', sans-serif;
+  background: var(--bg);
+  color: var(--text);
+  min-height: 100dvh;
+  overflow-x: hidden;
+}
 
-        @keyframes slideUp {
-            to {
-                opacity: 1;
-                transform: translateY(0);
-            }
-        }
+body::before {
+  content: '';
+  position: fixed; inset: 0;
+  background:
+    radial-gradient(ellipse 60% 40% at 20% 10%, rgba(0,198,255,.06) 0%, transparent 70%),
+    radial-gradient(ellipse 50% 50% at 80% 90%, rgba(255,112,67,.05) 0%, transparent 70%);
+  pointer-events: none; z-index: 0;
+}
 
-        h1 {
-            font-size: 1.75rem;
-            font-weight: 700;
-            margin-top: 0;
-            margin-bottom: 0.5rem;
-            text-align: center;
-            background: linear-gradient(135deg, #fff, #94a3b8);
-            -webkit-background-clip: text;
-            -webkit-text-fill-color: transparent;
-        }
+.wrap { position: relative; z-index: 1; max-width: 480px; margin: 0 auto; padding: 20px 16px 60px; }
 
-        p.subtitle {
-            text-align: center;
-            color: var(--text-secondary);
-            font-size: 0.95rem;
-            margin-bottom: 2rem;
-        }
+/* ── header ── */
+.hdr { text-align: center; padding: 24px 0 28px; }
+.hdr-icon { font-size: 44px; display: block; margin-bottom: 10px; }
+.hdr h1 { font-size: 20px; font-weight: 900; letter-spacing: .06em;
+  background: linear-gradient(120deg, var(--accent), #7c5af5);
+  -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text; }
+.hdr p { font-size: 12px; color: var(--dim); margin-top: 4px; }
 
-        /* Section Containers */
-        .section {
-            margin-bottom: 2rem;
-            opacity: 0;
-            transform: translateY(10px);
-            animation: fadeIn 0.5s ease forwards;
-        }
+/* ── card ── */
+.card {
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: 18px;
+  padding: 20px;
+  margin-bottom: 14px;
+  position: relative; overflow: hidden;
+}
+.card::before {
+  content: ''; position: absolute; top: 0; left: 0; right: 0; height: 1px;
+  background: linear-gradient(90deg, transparent, rgba(0,198,255,.4), transparent);
+}
+.card-label {
+  font-size: 11px; font-weight: 700; letter-spacing: .1em;
+  color: var(--dim); text-transform: uppercase; margin-bottom: 14px;
+}
 
-        .section:nth-child(1) { animation-delay: 0.2s; }
-        .section:nth-child(2) { animation-delay: 0.4s; }
-        .section:nth-child(3) { animation-delay: 0.6s; }
+/* ── big number display ── */
+.numbers-row { display: flex; gap: 10px; margin-bottom: 14px; }
+.num-box {
+  flex: 1; background: var(--card2); border-radius: 14px;
+  border: 1px solid var(--border); padding: 14px 8px; text-align: center;
+}
+.num-box .lbl { font-size: 11px; color: var(--dim); margin-bottom: 6px; }
+.num-box .val {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 44px; font-weight: 700; line-height: 1;
+  transition: all .3s ease;
+}
+.num-box.current .val { color: var(--green); text-shadow: 0 0 18px rgba(0,230,118,.45); }
+.num-box.mine    .val { color: var(--accent); text-shadow: 0 0 18px rgba(0,198,255,.45); }
 
-        @keyframes fadeIn {
-            to {
-                opacity: 1;
-                transform: translateY(0);
-            }
-        }
+/* ── progress ── */
+.prog-wrap { background: var(--card2); border-radius: 100px; height: 7px; overflow: hidden; margin: 8px 0; }
+.prog-fill {
+  height: 100%; border-radius: 100px;
+  background: linear-gradient(90deg, var(--accent), #7c5af5);
+  box-shadow: 0 0 8px rgba(0,198,255,.4);
+  transition: width .8s ease; width: 0%;
+}
+.prog-meta { display: flex; justify-content: space-between; font-size: 12px; color: var(--dim); }
 
-        label {
-            display: block;
-            font-size: 0.9rem;
-            font-weight: 600;
-            margin-bottom: 0.75rem;
-            color: var(--text-secondary);
-            text-transform: uppercase;
-            letter-spacing: 0.05em;
-        }
+/* ── eta badge ── */
+.eta-row { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 12px; }
+.badge {
+  display: inline-flex; align-items: center; gap: 5px;
+  padding: 5px 12px; border-radius: 100px; font-size: 12px; font-weight: 500;
+}
+.badge-blue  { background: rgba(0,198,255,.12); border: 1px solid rgba(0,198,255,.2); color: var(--accent); }
+.badge-green { background: rgba(0,230,118,.12); border: 1px solid rgba(0,230,118,.2); color: var(--green); }
+.badge-yellow{ background: rgba(255,215,64,.12); border: 1px solid rgba(255,215,64,.2); color: var(--yellow); }
+.badge-red   { background: rgba(255,82,82,.15);  border: 1px solid rgba(255,82,82,.3);  color: var(--red); }
 
-        /* Clinic Selection Buttons Grid */
-        .clinic-grid {
-            display: grid;
-            grid-template-columns: repeat(2, 1fr);
-            gap: 1rem;
-        }
+/* ── form ── */
+.field { margin-bottom: 12px; }
+.field label { display: block; font-size: 12px; color: var(--dim); margin-bottom: 6px; }
+.field input, .field select {
+  width: 100%; background: var(--card2); border: 1px solid var(--border);
+  border-radius: 10px; padding: 11px 14px; color: var(--text);
+  font-size: 15px; font-family: 'Noto Sans TC', sans-serif;
+  outline: none; transition: border-color .2s; -webkit-appearance: none;
+}
+.field input:focus, .field select:focus {
+  border-color: var(--accent); box-shadow: 0 0 0 3px rgba(0,198,255,.1);
+}
+.field input[type=number] { font-family: 'JetBrains Mono', monospace; font-size: 22px; font-weight: 700; }
+.row2 { display: flex; gap: 10px; }
+.row2 .field { flex: 1; }
 
-        .clinic-btn {
-            background: rgba(255, 255, 255, 0.05);
-            border: 1px solid var(--border-color);
-            color: var(--text-main);
-            padding: 1rem;
-            border-radius: 12px;
-            font-size: 1rem;
-            font-weight: 500;
-            cursor: pointer;
-            transition: all var(--transition-speed);
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            justify-content: center;
-            gap: 0.25rem;
-        }
+/* ── url field ── */
+.url-wrap { position: relative; }
+.url-wrap input { padding-right: 42px; font-size: 13px; }
+.url-paste {
+  position: absolute; right: 10px; top: 50%; transform: translateY(-50%);
+  background: none; border: none; color: var(--accent); cursor: pointer; font-size: 18px; padding: 4px;
+}
 
-        .clinic-btn span.doctor {
-            font-size: 0.75rem;
-            color: var(--text-secondary);
-        }
+/* ── hospital presets ── */
+.presets { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 14px; }
+.preset-btn {
+  padding: 5px 12px; border-radius: 100px; font-size: 12px; cursor: pointer;
+  background: var(--card2); border: 1px solid var(--border); color: var(--dim);
+  transition: all .2s;
+}
+.preset-btn:hover, .preset-btn.active {
+  border-color: var(--accent); color: var(--accent); background: rgba(0,198,255,.08);
+}
 
-        .clinic-btn:hover {
-            background: rgba(255, 255, 255, 0.1);
-            transform: translateY(-2px);
-            border-color: rgba(255, 255, 255, 0.2);
-            box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.3);
-        }
+/* ── buttons ── */
+.btn {
+  width: 100%; padding: 15px; border-radius: 14px; border: none;
+  font-family: 'Noto Sans TC', sans-serif; font-size: 15px; font-weight: 700;
+  cursor: pointer; transition: all .2s; letter-spacing: .04em;
+}
+.btn-start {
+  background: linear-gradient(135deg, #00c6ff, #7c5af5);
+  color: #fff; box-shadow: 0 4px 20px rgba(0,198,255,.25);
+}
+.btn-start:hover { transform: translateY(-1px); box-shadow: 0 6px 24px rgba(0,198,255,.35); }
+.btn-start:active { transform: translateY(0); }
+.btn-start:disabled { opacity: .5; cursor: not-allowed; transform: none; }
+.btn-stop  { background: linear-gradient(135deg, #ff5252, #ff7043); color: #fff; margin-top: 10px; }
 
-        .clinic-btn.active {
-            background: var(--primary-accent);
-            border-color: var(--primary-accent);
-            transform: translateY(-2px);
-            box-shadow: 0 10px 20px -5px rgba(59, 130, 246, 0.5);
-        }
-        
-        .clinic-btn.active span.doctor {
-            color: rgba(255, 255, 255, 0.8);
-        }
+/* ── status ── */
+.status-bar {
+  display: flex; align-items: center; gap: 8px;
+  font-size: 12px; color: var(--dim);
+  background: var(--card2); border-radius: 10px; padding: 9px 14px;
+  margin-bottom: 14px;
+}
+.dot { width: 8px; height: 8px; border-radius: 50%; background: var(--dim); flex-shrink: 0; }
+.dot.on  { background: var(--green); box-shadow: 0 0 8px var(--green); animation: blink 1.5s infinite; }
+.dot.err { background: var(--red); }
+@keyframes blink { 0%,100%{opacity:1} 50%{opacity:.4} }
 
-        /* Input Field */
-        .input-group {
-            position: relative;
-        }
+/* ── log ── */
+.log-wrap { max-height: 140px; overflow-y: auto; }
+.log-item {
+  display: flex; gap: 8px; padding: 7px 0;
+  border-bottom: 1px solid var(--border); font-size: 12px;
+}
+.log-item:last-child { border-bottom: none; }
+.log-time { color: var(--dim); white-space: nowrap; font-family: 'JetBrains Mono', monospace; }
+.log-msg { color: var(--text); }
+.log-msg.warn  { color: var(--yellow); }
+.log-msg.alert { color: var(--red); font-weight: 700; }
 
-        input[type="number"] {
-            width: 100%;
-            padding: 1rem 1.25rem;
-            background: rgba(0, 0, 0, 0.2);
-            border: 1px solid var(--border-color);
-            border-radius: 12px;
-            color: var(--text-main);
-            font-size: 1rem;
-            font-family: var(--font-main);
-            box-sizing: border-box;
-            transition: all var(--transition-speed);
-        }
+/* ── alert overlay ── */
+.alert-overlay {
+  display: none; position: fixed; inset: 0; z-index: 100;
+  background: rgba(0,0,0,.75); backdrop-filter: blur(4px);
+  justify-content: center; align-items: center; padding: 20px;
+}
+.alert-overlay.show { display: flex; }
+.alert-box {
+  background: var(--card); border: 2px solid var(--red);
+  border-radius: 20px; padding: 32px 24px; text-align: center; max-width: 340px; width: 100%;
+  animation: popIn .3s cubic-bezier(.175,.885,.32,1.275);
+}
+@keyframes popIn { from{transform:scale(.85);opacity:0} to{transform:scale(1);opacity:1} }
+.alert-box .alert-icon { font-size: 52px; display: block; margin-bottom: 12px;
+  animation: shake .4s infinite; }
+@keyframes shake { 0%,100%{transform:rotate(0)} 25%{transform:rotate(-10deg)} 75%{transform:rotate(10deg)} }
+.alert-box h2 { font-size: 18px; font-weight: 900; color: var(--red); margin-bottom: 8px; }
+.alert-box p  { font-size: 14px; color: var(--dim); line-height: 1.6; }
+.btn-dismiss  { margin-top: 20px; padding: 12px 32px; border-radius: 12px; border: none;
+  background: var(--red); color: #fff; font-size: 15px; font-weight: 700; cursor: pointer; }
 
-        input[type="number"]:focus {
-            outline: none;
-            border-color: var(--primary-accent);
-            background: rgba(0, 0, 0, 0.4);
-            box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.2);
-        }
-
-        input[type="number"]::placeholder {
-            color: rgba(148, 163, 184, 0.5);
-        }
-
-        /* Action Button */
-        button.action-btn {
-            width: 100%;
-            padding: 1rem;
-            background: linear-gradient(to right, var(--primary-accent), #60a5fa);
-            color: white;
-            border: none;
-            border-radius: 12px;
-            font-size: 1.05rem;
-            font-weight: 600;
-            cursor: pointer;
-            transition: all var(--transition-speed);
-            position: relative;
-            overflow: hidden;
-            box-shadow: 0 10px 20px -5px rgba(59, 130, 246, 0.4);
-        }
-
-        button.action-btn::after {
-            content: '';
-            position: absolute;
-            top: 0;
-            left: -100%;
-            width: 50%;
-            height: 100%;
-            background: linear-gradient(to right, transparent, rgba(255,255,255,0.2), transparent);
-            transform: skewX(-20deg);
-            transition: all 0.5s;
-        }
-
-        button.action-btn:hover {
-            transform: translateY(-2px);
-            box-shadow: 0 15px 25px -5px rgba(59, 130, 246, 0.5);
-        }
-
-        button.action-btn:hover::after {
-            left: 150%;
-        }
-
-        button.action-btn:active {
-            transform: translateY(0);
-        }
-
-        /* Status Indicator */
-        .status-card {
-            display: none;
-            margin-top: 2rem;
-            padding: 1.5rem;
-            background: rgba(34, 197, 94, 0.1);
-            border: 1px solid rgba(34, 197, 94, 0.2);
-            border-radius: 12px;
-            text-align: center;
-            animation: slideUp 0.4s ease forwards;
-        }
-
-        .status-card h4 {
-            margin: 0 0 0.5rem 0;
-            color: var(--success-color);
-            font-size: 1.1rem;
-        }
-
-        .status-card p {
-            margin: 0;
-            color: var(--text-secondary);
-            font-size: 0.9rem;
-            line-height: 1.5;
-        }
-
-        .status-value {
-            font-size: 2rem;
-            font-weight: 700;
-            color: var(--text-main);
-            margin: 0.5rem 0;
-            font-variant-numeric: tabular-nums;
-        }
-
-    </style>
+/* ── notif permission ── */
+.notif-hint {
+  display: flex; align-items: center; gap: 8px;
+  background: rgba(255,215,64,.08); border: 1px solid rgba(255,215,64,.2);
+  border-radius: 10px; padding: 10px 14px; font-size: 12px; color: var(--yellow);
+  margin-bottom: 14px; cursor: pointer;
+}
+</style>
 </head>
 <body>
+<div class="wrap">
 
-    <div class="container">
-        <div class="glass-card">
-            <h1>國軍桃園總醫院</h1>
-            <p class="subtitle">AI 看診動態追蹤與導航預測</p>
+  <!-- Header -->
+  <div class="hdr">
+    <span class="hdr-icon">🏥</span>
+    <h1>叫號監控器</h1>
+    <p>設定完成後放心去吃飯，快輪到時自動通知你</p>
+  </div>
 
-            <div class="section" style="animation-delay: 0.1s;">
-                <label>1. 選擇看診診間</label>
-                <div class="clinic-grid" id="clinicGrid">
-                    <!-- Dynamic Clinic Buttons Generated via JS -->
-                </div>
-            </div>
+  <!-- 通知權限提示 -->
+  <div class="notif-hint" id="notifHint" onclick="requestNotifPermission()" style="display:none">
+    🔔 點此開啟瀏覽器通知，才能在背景收到提醒
+  </div>
 
-            <div class="section" style="animation-delay: 0.2s;">
-                <label for="ticketNumber">2. 輸入您的掛號號碼</label>
-                <div class="input-group">
-                    <input type="number" id="ticketNumber" placeholder="例如: 45" min="1">
-                </div>
-            </div>
-
-            <div class="section" style="animation-delay: 0.3s;">
-                <button class="action-btn" id="startBtn" onclick="startTracking()">開始智能追蹤</button>
-            </div>
-
-            <div class="status-card" id="statusCard">
-                <h4>追蹤已啟動</h4>
-                <div class="status-value" id="remainingPeople">等待資料中...</div>
-                <p>將在背景持續監控最新進度，並結合路況於適當時機發送出門提醒通知。</p>
-            </div>
+  <!-- 即時狀態（監控中才顯示） -->
+  <div id="liveSection" style="display:none">
+    <div class="card">
+      <div class="card-label">即時看診進度</div>
+      <div class="numbers-row">
+        <div class="num-box current">
+          <div class="lbl">目前號碼</div>
+          <div class="val" id="displayCurrent">—</div>
         </div>
+        <div class="num-box mine">
+          <div class="lbl">我的號碼</div>
+          <div class="val" id="displayMine">—</div>
+        </div>
+      </div>
+      <div class="prog-wrap"><div class="prog-fill" id="progFill"></div></div>
+      <div class="prog-meta">
+        <span id="progLeft">剩餘 — 號</span>
+        <span id="progPct">0%</span>
+      </div>
+      <div class="eta-row" id="etaRow">
+        <span class="badge badge-blue" id="etaBadge">⏱ 計算中...</span>
+        <span class="badge badge-green" id="speedBadge" style="display:none">🚀 —</span>
+      </div>
     </div>
 
-    <script>
-        // Simulated API response from the scraper
-        const mockClinics = [
-            { id: 'C01', name: '內科 01診', doctor: '王大明', current: 22 },
-            { id: 'C02', name: '外科 03診', doctor: '陳小華', current: 15 },
-            { id: 'C03', name: '眼科 02診', doctor: '林志豪', current: 48 },
-            { id: 'C04', name: '骨科 01診', doctor: '劉醫師', current: 8 }
-        ];
+    <div class="status-bar">
+      <div class="dot on" id="statusDot"></div>
+      <span id="statusText">監控中，每 60 秒自動更新一次</span>
+    </div>
 
-        let selectedClinicId = null;
+    <div class="card">
+      <div class="card-label">更新紀錄</div>
+      <div class="log-wrap" id="logList"></div>
+    </div>
 
-        // Initialize UI
-        function initUI() {
-            const grid = document.getElementById('clinicGrid');
-            mockClinics.forEach(clinic => {
-                const btn = document.createElement('div');
-                btn.className = 'clinic-btn';
-                btn.onclick = () => selectClinic(clinic.id, btn);
-                btn.innerHTML = `
-                    ${clinic.name}
-                    <span class="doctor">${clinic.doctor}</span>
-                `;
-                grid.appendChild(btn);
-            });
-        }
+    <button class="btn btn-stop" onclick="stopTracking()">⏹ 停止監控</button>
+  </div>
 
-        // Handle clinic selection
-        function selectClinic(id, element) {
-            selectedClinicId = id;
-            // Remove active class from all
-            document.querySelectorAll('.clinic-btn').forEach(btn => btn.classList.remove('active'));
-            // Add active class to selected
-            element.classList.add('active');
-        }
+  <!-- 設定表單 -->
+  <div id="setupSection">
+    <div class="card">
+      <div class="card-label">醫院叫號網址</div>
+      <div class="field">
+        <label>快速選擇常見醫院</label>
+        <div class="presets" id="presetButtons"></div>
+      </div>
+      <div class="field">
+        <label>或手動貼上即時看診進度網址</label>
+        <div class="url-wrap">
+          <input type="url" id="targetUrl" placeholder="https://醫院網址/opd/..."
+            oninput="clearPreset()">
+          <button class="url-paste" onclick="pasteUrl()" title="貼上">📋</button>
+        </div>
+      </div>
+    </div>
 
-        // Start tracking action
-        function startTracking() {
-            const ticketInput = document.getElementById('ticketNumber').value;
-            
-            if (!selectedClinicId) {
-                alert('請先選擇一個診間！');
-                return;
-            }
-            if (!ticketInput || ticketInput <= 0) {
-                alert('請輸入有效的掛號號碼！');
-                return;
-            }
+    <div class="card">
+      <div class="card-label">掛號資訊</div>
+      <div class="row2">
+        <div class="field">
+          <label>我的掛號號碼</label>
+          <input type="number" id="myNumber" placeholder="117" min="1" max="999">
+        </div>
+        <div class="field">
+          <label>提前幾號提醒我</label>
+          <input type="number" id="alertBefore" value="5" min="1" max="30">
+        </div>
+      </div>
+      <div class="field">
+        <label>輪詢間隔（秒）</label>
+        <select id="intervalSec">
+          <option value="30">30 秒（耗電較快）</option>
+          <option value="60" selected>60 秒（建議）</option>
+          <option value="120">2 分鐘（省電）</option>
+          <option value="180">3 分鐘</option>
+        </select>
+      </div>
+    </div>
 
-            const targetClinic = mockClinics.find(c => c.id === selectedClinicId);
-            const userNumber = parseInt(ticketInput);
-            
-            if (userNumber <= targetClinic.current) {
-                alert('您的號碼已經過號，或目前正在看診中，請盡速前往診間！');
-                return;
-            }
+    <button class="btn btn-start" id="startBtn" onclick="startTracking()">
+      🚀 開始監控
+    </button>
+  </div>
 
-            const remaining = userNumber - targetClinic.current;
-            
-            // UI Feedback
-            const btn = document.getElementById('startBtn');
-            btn.innerHTML = '<span style="opacity:0.8">監控運作中...</span>';
-            btn.style.background = 'var(--success-color)';
-            btn.disabled = true;
+</div>
 
-            const statusCard = document.getElementById('statusCard');
-            statusCard.style.display = 'block';
-            
-            const remainingElement = document.getElementById('remainingPeople');
-            
-            // Simple number animation
-            let currentDisplay = 0;
-            const interval = setInterval(() => {
-                if (currentDisplay >= remaining) {
-                    clearInterval(interval);
-                    remainingElement.innerHTML = `約剩 <span style="color:var(--primary-accent)">${remaining}</span> 人`;
-                } else {
-                    currentDisplay += 1;
-                    remainingElement.textContent = `計算中 ${currentDisplay}...`;
-                }
-            }, 30);
-        }
+<!-- 警報 overlay -->
+<div class="alert-overlay" id="alertOverlay">
+  <div class="alert-box">
+    <span class="alert-icon" id="alertIcon">🚨</span>
+    <h2 id="alertTitle">快輪到你了！</h2>
+    <p id="alertBody">請盡速前往診間</p>
+    <button class="btn-dismiss" onclick="dismissAlert()">知道了，前往診間</button>
+  </div>
+</div>
 
-        // Run setup on load
-        window.onload = initUI;
-    </script>
+<script>
+// ── 醫院預設清單 ──
+const HOSPITALS = [
+  { name: "國軍桃園", url: "https://www.aftygh.gov.tw/opd/" },
+  { name: "台大醫院", url: "https://reg.ntuh.gov.tw/WebAdministration/OPDRealtimeStatus.aspx" },
+  { name: "長庚桃園", url: "https://www1.cgmh.org.tw/intr/intr2/c33600/OPD_now.aspx" },
+  { name: "林口長庚", url: "https://www1.cgmh.org.tw/intr/intr2/c33600/OPD_now.aspx" },
+  { name: "馬偕醫院", url: "https://www.mmh.org.tw/tpe/dep/OPD/OPDNow.aspx" },
+  { name: "台北聯合", url: "https://reg.tpech.gov.taipei/OpdQNo/NowClinicNo" },
+];
+
+// ── 狀態 ──
+let monitorTimer  = null;
+let numberHistory = [];  // [{number, timestamp}]
+let state = {
+  url: '',
+  myNumber: 0,
+  alertBefore: 5,
+  intervalSec: 60,
+  alertedWarn: false,
+  alertedUrgent: false,
+};
+
+// ── 初始化 ──
+window.onload = () => {
+  buildPresets();
+  checkNotifPermission();
+};
+
+function buildPresets() {
+  const wrap = document.getElementById('presetButtons');
+  HOSPITALS.forEach((h, i) => {
+    const btn = document.createElement('button');
+    btn.className = 'preset-btn';
+    btn.dataset.index = i;
+    btn.textContent = h.name;
+    btn.onclick = () => selectPreset(i, btn);
+    wrap.appendChild(btn);
+  });
+}
+
+function selectPreset(i, btn) {
+  document.querySelectorAll('.preset-btn').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+  document.getElementById('targetUrl').value = HOSPITALS[i].url;
+}
+
+function clearPreset() {
+  document.querySelectorAll('.preset-btn').forEach(b => b.classList.remove('active'));
+}
+
+async function pasteUrl() {
+  try {
+    const text = await navigator.clipboard.readText();
+    document.getElementById('targetUrl').value = text;
+    clearPreset();
+  } catch { alert('請手動貼上網址'); }
+}
+
+// ── 通知權限 ──
+function checkNotifPermission() {
+  if (!('Notification' in window)) return;
+  if (Notification.permission === 'default') {
+    document.getElementById('notifHint').style.display = 'flex';
+  }
+}
+
+async function requestNotifPermission() {
+  const perm = await Notification.requestPermission();
+  if (perm === 'granted') document.getElementById('notifHint').style.display = 'none';
+}
+
+// ── 開始監控 ──
+function startTracking() {
+  const url = document.getElementById('targetUrl').value.trim();
+  const myNum = parseInt(document.getElementById('myNumber').value);
+  const alertBefore = parseInt(document.getElementById('alertBefore').value) || 5;
+  const intervalSec = parseInt(document.getElementById('intervalSec').value) || 60;
+
+  if (!url) { alert('請輸入或選擇醫院叫號網址'); return; }
+  if (!myNum || myNum < 1) { alert('請輸入你的掛號號碼'); return; }
+
+  state = { url, myNumber: myNum, alertBefore, intervalSec, alertedWarn: false, alertedUrgent: false };
+  numberHistory = [];
+
+  // 要求通知權限
+  if (Notification.permission === 'default') requestNotifPermission();
+
+  // 切換 UI
+  document.getElementById('setupSection').style.display = 'none';
+  document.getElementById('liveSection').style.display = 'block';
+  document.getElementById('displayMine').textContent = myNum;
+  document.getElementById('statusText').textContent = `監控中，每 ${intervalSec} 秒自動更新`;
+
+  addLog('監控已啟動', 'normal');
+  pollOnce();
+  monitorTimer = setInterval(pollOnce, intervalSec * 1000);
+}
+
+function stopTracking() {
+  clearInterval(monitorTimer);
+  monitorTimer = null;
+  document.getElementById('setupSection').style.display = 'block';
+  document.getElementById('liveSection').style.display = 'none';
+  document.getElementById('statusDot').className = 'dot';
+  addLog('監控已停止', 'normal');
+}
+
+// ── 核心：抓號碼 ──
+async function pollOnce() {
+  const proxyUrl = buildProxyUrl(state.url);
+
+  try {
+    const resp = await fetch(proxyUrl, { signal: AbortSignal.timeout(12000) });
+    if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
+    const html = await resp.text();
+    const currentNum = parseCurrentNumber(html);
+
+    if (currentNum === null) {
+      addLog('⚠️ 無法從頁面解析號碼，請確認網址正確', 'warn');
+      setStatus('解析失敗，請確認網址', 'err');
+      return;
+    }
+
+    const now = Date.now();
+    numberHistory.push({ number: currentNum, ts: now });
+    if (numberHistory.length > 30) numberHistory.shift();
+
+    updateDisplay(currentNum);
+    checkAlert(currentNum);
+    setStatus(`上次更新：${new Date().toLocaleTimeString('zh-TW')}`, 'on');
+
+  } catch (err) {
+    const msg = err.name === 'TimeoutError' ? '連線逾時' : `網路錯誤：${err.message}`;
+    addLog(`❌ ${msg}`, 'warn');
+    setStatus(msg, 'err');
+  }
+}
+
+// ── CORS Proxy（開源公共 proxy，可自行換成後端 API）──
+function buildProxyUrl(targetUrl) {
+  // 使用 allorigins.win 公共 CORS proxy
+  // 正式產品請換成你自己的後端伺服器 /api/scrape?url=...
+  return `https://api.allorigins.win/get?url=${encodeURIComponent(targetUrl)}`;
+}
+
+// ── 通用號碼解析（對應後端 scraper.py 的邏輯）──
+function parseCurrentNumber(rawResponse) {
+  let html = rawResponse;
+
+  // allorigins 回傳 JSON 格式 {contents: "...html..."}
+  try {
+    const json = JSON.parse(rawResponse);
+    if (json.contents) html = json.contents;
+  } catch { /* 直接當 html */ }
+
+  const parser = new DOMParser();
+  const doc = parser.parseFromString(html, 'text/html');
+
+  // Selector 清單（與 scraper.py 保持一致）
+  const SELECTORS = [
+    '.current-no', '.nowNo', '#nowNo', 'td.now-num',
+    '.clinicNowNo', '.nowClinicNo', '[id*="NowNo"]',
+    '[id*="curno"]',
+    '.now_num', '.call_num', 'td.callno', '.opdNowNo',
+    '.nowno', '.now-no', '#nowno',
+    '[class*="now"]',
+  ];
+
+  for (const sel of SELECTORS) {
+    const els = doc.querySelectorAll(sel);
+    for (const el of els) {
+      const nums = el.textContent.match(/\d+/);
+      if (nums) {
+        const n = parseInt(nums[0]);
+        if (n > 0 && n < 1000) return n;
+      }
+    }
+  }
+
+  // Regex 全文搜尋
+  const text = doc.body?.textContent || '';
+  const patterns = [
+    /目前看診[：:]\s*(\d+)/,
+    /現在號碼[：:]\s*(\d+)/,
+    /目前叫號[：:]\s*(\d+)/,
+    /看診中[：:]\s*(\d+)/,
+    /現在.*?(\d{1,3})號/,
+    /叫到.*?(\d{1,3})號/,
+    /Call\s*No\.?\s*[:\s]+(\d+)/i,
+    /Now\s*No\.?\s*[:\s]+(\d+)/i,
+  ];
+  for (const p of patterns) {
+    const m = text.match(p);
+    if (m) { const n = parseInt(m[1]); if (n > 0 && n < 1000) return n; }
+  }
+
+  return null;
+}
+
+// ── 更新畫面 ──
+function updateDisplay(current) {
+  const mine = state.myNumber;
+  const remaining = mine - current;
+
+  document.getElementById('displayCurrent').textContent = current;
+
+  // 進度條
+  const pct = Math.min(100, Math.max(0, (current / mine) * 100));
+  document.getElementById('progFill').style.width = pct + '%';
+  document.getElementById('progPct').textContent = Math.round(pct) + '%';
+  document.getElementById('progLeft').textContent = remaining > 0 ? `剩餘 ${remaining} 號` : '快輪到了！';
+
+  // ETA
+  const eta = calcETA(remaining);
+  const etaBadge = document.getElementById('etaBadge');
+  etaBadge.textContent = `⏱ 預估等待 ${eta}`;
+  if (remaining <= 3) etaBadge.className = 'badge badge-red';
+  else if (remaining <= state.alertBefore) etaBadge.className = 'badge badge-yellow';
+  else etaBadge.className = 'badge badge-blue';
+
+  // 速度
+  const speed = calcSpeed();
+  if (speed) {
+    const sb = document.getElementById('speedBadge');
+    sb.style.display = 'inline-flex';
+    sb.textContent = `🚀 每號約 ${speed} 分`;
+  }
+
+  // 跳號偵測
+  if (numberHistory.length >= 2) {
+    const prev = numberHistory[numberHistory.length - 2].number;
+    if (current - prev >= 10) {
+      addLog(`⚠️ 偵測到跳號！${prev} → ${current}`, 'warn');
+    }
+  }
+
+  addLog(`目前 ${current} 號，剩 ${remaining} 號，${eta}`, remaining <= state.alertBefore ? 'warn' : 'normal');
+}
+
+function calcETA(remaining) {
+  const speed = calcSpeed();  // 分鐘/號
+  if (!speed || remaining <= 0) return '計算中';
+  const mins = Math.round(speed * remaining);
+  if (mins < 1) return '不到1分鐘';
+  if (mins >= 60) return `約 ${Math.floor(mins/60)} 小時 ${mins%60} 分`;
+  return `約 ${mins} 分鐘`;
+}
+
+function calcSpeed() {
+  if (numberHistory.length < 2) return null;
+  const first = numberHistory[0];
+  const last  = numberHistory[numberHistory.length - 1];
+  const numDiff  = last.number - first.number;
+  const timeDiff = (last.ts - first.ts) / 60000;  // 分鐘
+  if (numDiff <= 0) return null;
+  return (timeDiff / numDiff).toFixed(1);
+}
+
+// ── 警報判斷 ──
+function checkAlert(current) {
+  const remaining = state.myNumber - current;
+
+  if (remaining <= 0 || (remaining <= 3 && !state.alertedUrgent)) {
+    state.alertedUrgent = true;
+    triggerAlert(
+      '🚨', '快輪到你了！',
+      `目前號碼 ${current}，你的號碼 ${state.myNumber}，請立刻前往診間！`,
+      'urgent'
+    );
+  } else if (remaining <= state.alertBefore && !state.alertedWarn) {
+    state.alertedWarn = true;
+    triggerAlert(
+      '⏰', '請準備前往醫院',
+      `目前號碼 ${current}，還有 ${remaining} 號輪到你，${calcETA(remaining)}，請開始移動！`,
+      'warn'
+    );
+  }
+}
+
+function triggerAlert(icon, title, body, level) {
+  // 頁面 overlay
+  document.getElementById('alertIcon').textContent = icon;
+  document.getElementById('alertTitle').textContent = title;
+  document.getElementById('alertBody').textContent = body;
+  document.getElementById('alertOverlay').classList.add('show');
+
+  // 瀏覽器推播通知（鎖屏也能收到）
+  if (Notification.permission === 'granted') {
+    new Notification(title, { body, icon: '🏥', badge: '🏥',
+      vibrate: level === 'urgent' ? [500,200,500,200,500] : [300,100,300] });
+  }
+
+  // 聲音（用 AudioContext 產生提示音）
+  playBeep(level === 'urgent' ? 3 : 1);
+
+  addLog(`🔔 ${title}`, 'alert');
+}
+
+function dismissAlert() {
+  document.getElementById('alertOverlay').classList.remove('show');
+}
+
+function playBeep(times = 1) {
+  try {
+    const ctx = new (window.AudioContext || window.webkitAudioContext)();
+    let t = ctx.currentTime;
+    for (let i = 0; i < times; i++) {
+      const osc = ctx.createOscillator();
+      const gain = ctx.createGain();
+      osc.connect(gain); gain.connect(ctx.destination);
+      osc.frequency.value = 880;
+      gain.gain.setValueAtTime(0.4, t);
+      gain.gain.exponentialRampToValueAtTime(0.001, t + 0.4);
+      osc.start(t); osc.stop(t + 0.4);
+      t += 0.6;
+    }
+  } catch (e) {}
+}
+
+// ── 狀態列 ──
+function setStatus(msg, type) {
+  document.getElementById('statusText').textContent = msg;
+  const dot = document.getElementById('statusDot');
+  dot.className = 'dot ' + (type || '');
+}
+
+// ── 紀錄 ──
+function addLog(msg, type = 'normal') {
+  const list = document.getElementById('logList');
+  const item = document.createElement('div');
+  item.className = 'log-item';
+  const t = new Date().toLocaleTimeString('zh-TW', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+  item.innerHTML = `<span class="log-time">${t}</span><span class="log-msg ${type === 'normal' ? '' : type}">${msg}</span>`;
+  list.prepend(item);
+  // 最多保留 30 筆
+  while (list.children.length > 30) list.removeChild(list.lastChild);
+}
+</script>
 </body>
 </html>
