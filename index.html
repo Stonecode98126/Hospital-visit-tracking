@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-<title>叫號監控器</title>
+<title>804桃園國軍總醫院 看診提醒</title>
 <style>
 @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;500;700;900&family=JetBrains+Mono:wght@400;700&display=swap');
 
@@ -209,8 +209,8 @@ body::before {
 
   <div class="hdr">
     <span class="hdr-icon">🏥</span>
-    <h1>叫號監控器</h1>
-    <p>設定完成後放心去吃飯，快輪到時自動通知你</p>
+    <h1>804 桃園國軍總醫院</h1>
+    <p>即時看診進度監控，快輪到時自動提醒你</p>
   </div>
 
   <div class="notif-hint" id="notifHint" onclick="requestNotifPermission()" style="display:none">
@@ -343,31 +343,10 @@ body::before {
 // ══ 醫院清單 ══
 const HOSPITALS = [
   {
-    name:"國軍桃園",
+    name:"804 桃園國軍總醫院",
     url:"https://www.aftygh.gov.tw/opd/",
-    // 直接呼叫醫院 API（繞過 Cloudflare，從使用者瀏覽器直接抓）
     directApi: "https://aftygh-proxy.owen163.workers.dev/",
     directParser: "aftygh",
-  },
-  {
-    name:"台大醫院", url:"https://reg.ntuh.gov.tw/WebAdministration/OPDRealtimeStatus.aspx",
-    rules:{ row:"tr.GridRow,tr.GridAltRow", dept:"td:nth-child(1)", clinic:"td:nth-child(2)", doctor:"td:nth-child(3)", current:"td:nth-child(4)" }
-  },
-  {
-    name:"長庚桃園", url:"https://www1.cgmh.org.tw/intr/intr2/c33600/OPD_now.aspx",
-    rules:{ row:"tr.GridRow,tr.GridAltRow,table tbody tr", dept:"td:nth-child(1)", clinic:"td:nth-child(2)", doctor:"td:nth-child(3)", current:"td:nth-child(4)" }
-  },
-  {
-    name:"林口長庚", url:"https://www6.cgmh.org.tw/intr/intr2/c33600/OPD_now.aspx",
-    rules:{ row:"tr.GridRow,tr.GridAltRow,table tbody tr", dept:"td:nth-child(1)", clinic:"td:nth-child(2)", doctor:"td:nth-child(3)", current:"td:nth-child(4)" }
-  },
-  {
-    name:"馬偕台北", url:"https://www.mmh.org.tw/tpe/dep/OPD/OPDNow.aspx",
-    rules:{ row:"table tbody tr", dept:"td:nth-child(1)", clinic:"td:nth-child(2)", doctor:"td:nth-child(3)", current:"td:nth-child(5)" }
-  },
-  {
-    name:"台北聯合", url:"https://reg.tpech.gov.taipei/OpdQNo/NowClinicNo",
-    rules:{ row:"tr", dept:"td:nth-child(1)", clinic:"td:nth-child(2)", doctor:"td:nth-child(4)", current:"td:nth-child(3)" }
   },
 ];
 
