@@ -4,6 +4,11 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
 <title>804桃園國軍總醫院 看診提醒</title>
+<link rel="manifest" href="/manifest.json">
+<meta name="theme-color" content="#00c6ff">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="看診提醒">
 <style>
 @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;500;700;900&family=JetBrains+Mono:wght@400;700&display=swap');
 
@@ -215,6 +220,9 @@ body::before {
 
   <div class="notif-hint" id="notifHint" onclick="requestNotifPermission()" style="display:none">
     🔔 點此開啟通知權限，才能在背景收到提醒
+  </div>
+  <div class="notif-hint" id="pwaHint" onclick="installPWA()" style="display:none;background:rgba(0,230,118,.08);border-color:rgba(0,230,118,.2);color:#00e676">
+    📲 點此安裝到手機桌面，鎖屏也能收到提醒
   </div>
 
   <!-- 步驟指示器 -->
@@ -710,12 +718,23 @@ function startTracking() {
     updateDisplay(selectedClinic.current);
   }
   addLog('✅ 監控已啟動');
+
+  // 向後端訂閱背景推播
+  subscribePush({
+    url: monitorState.url,
+    clinicName: selectedClinic.clinic,
+    doctor: selectedClinic.doctor,
+    myNumber: myNum,
+    alertBefore: alertBefore,
+  });
+
   pollOnce();
   monitorTimer = setInterval(pollOnce, intervalSec*1000);
 }
 
 function stopTracking() {
   clearInterval(monitorTimer); monitorTimer=null;
+  unsubscribePush();  // 取消後端背景推播
   document.getElementById('fetchStatus').innerHTML='';
   goStep(1);
   document.getElementById('stepIndicator').style.display='flex';
@@ -842,6 +861,81 @@ function checkNotifPermission() {
 async function requestNotifPermission() {
   if(await Notification.requestPermission()==='granted')
     document.getElementById('notifHint').style.display='none';
+}
+
+// ══ Service Worker 註冊 ══
+let swRegistration = null;
+if ('serviceWorker' in navigator) {
+  window.addEventListener('load', async () => {
+    try {
+      swRegistration = await navigator.serviceWorker.register('/sw.js');
+      console.log('SW registered');
+    } catch(err) { console.warn('SW failed:', err); }
+  });
+}
+
+// ══ PWA 安裝提示 ══
+let deferredInstallPrompt = null;
+window.addEventListener('beforeinstallprompt', (e) => {
+  e.preventDefault();
+  deferredInstallPrompt = e;
+  document.getElementById('pwaHint').style.display = 'flex';
+});
+async function installPWA() {
+  if (!deferredInstallPrompt) return;
+  deferredInstallPrompt.prompt();
+  const { outcome } = await deferredInstallPrompt.userChoice;
+  if (outcome === 'accepted') document.getElementById('pwaHint').style.display = 'none';
+  deferredInstallPrompt = null;
+}
+
+// ══ Web Push 訂閱 ══
+const VAPID_PUBLIC_KEY = 'BHodmLtH9A2BexIS6gMqcm_Wu2p4D4a8T-ikrE0F6cMqCEeqNW13GYK92SosX_FKrDZMTqkSAqcS6X8Syg7IzvQ';
+
+function urlBase64ToUint8Array(base64String) {
+  const padding = '='.repeat((4 - base64String.length % 4) % 4);
+  const base64 = (base64String + padding).replace(/-/g, '+').replace(/_/g, '/');
+  const rawData = window.atob(base64);
+  return Uint8Array.from([...rawData].map(c => c.charCodeAt(0)));
+}
+
+async function subscribePush(task) {
+  if (!swRegistration) { console.warn('No SW'); return null; }
+  try {
+    let sub = await swRegistration.pushManager.getSubscription();
+    if (!sub) {
+      sub = await swRegistration.pushManager.subscribe({
+        userVisibleOnly: true,
+        applicationServerKey: urlBase64ToUint8Array(VAPID_PUBLIC_KEY),
+      });
+    }
+    await fetch('/api/subscribe', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ subscription: sub.toJSON(), task }),
+    });
+    addLog('✅ 背景推播已啟用，關屏也能收到通知');
+    return sub;
+  } catch(err) {
+    console.warn('Push subscribe failed:', err);
+    addLog('⚠️ 背景推播設定失敗，將使用頁面內提醒', 'warn');
+    return null;
+  }
+}
+
+async function unsubscribePush() {
+  if (!swRegistration) return;
+  try {
+    const sub = await swRegistration.pushManager.getSubscription();
+    if (sub) {
+      await fetch('/api/subscribe', {
+        method: 'DELETE',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ endpoint: sub.endpoint }),
+      });
+      await sub.unsubscribe();
+    }
+  } catch(err) { console.warn('Unsubscribe failed:', err); }
 }
 </script>
 </body>

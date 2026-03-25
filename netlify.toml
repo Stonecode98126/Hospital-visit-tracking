@@ -1,0 +1,34 @@
+[build]
+  publish = "."
+  functions = "netlify/functions"
+
+# 每分鐘自動執行 notify.js 檢查號碼
+[functions."notify"]
+  schedule = "* * * * *"
+
+[[redirects]]
+  from = "/api/scrape"
+  to = "/.netlify/functions/scrape"
+  status = 200
+
+[[redirects]]
+  from = "/api/subscribe"
+  to = "/.netlify/functions/subscribe"
+  status = 200
+
+[[redirects]]
+  from = "/api/notify"
+  to = "/.netlify/functions/notify"
+  status = 200
+
+[[headers]]
+  for = "/*"
+  [headers.values]
+    X-Frame-Options = "SAMEORIGIN"
+    X-Content-Type-Options = "nosniff"
+
+[[headers]]
+  for = "/sw.js"
+  [headers.values]
+    Cache-Control = "no-cache"
+    Service-Worker-Allowed = "/"
