@@ -4,7 +4,7 @@
 
 # 每分鐘自動執行 notify.js 檢查號碼
 [functions."notify"]
-  schedule = "* * * * *"
+  schedule = "*/5 * * * *"
 
 [[redirects]]
   from = "/api/scrape"
