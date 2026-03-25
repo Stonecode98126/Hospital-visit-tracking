@@ -1,105 +1,140 @@
-# 醫院叫號監控系統：架構設計文件 v2
+# 804 桃園國軍總醫院看診提醒系統｜架構文件 v3
 
-## 本次優化重點
+## 系統概覽
 
-### 前端 index.html
-| 問題（v1）| 解決（v2）|
-|---|---|
-| 診間資料為假資料 `mockClinics` | 真實串接醫院網址，用 CORS proxy 抓取 |
-| 按下追蹤只跑數字動畫 | 真正每 N 秒輪詢一次醫院頁面 |
-| 沒有推播通知 | 整合 Web Notification API，鎖屏也能收到 |
-| 沒有 ETA 預估 | 根據號碼歷史自動計算每號速度 |
-| 沒有跳號偵測 | 偵測到 10 號以上跳號時警告 |
-| 沒有聲音警報 | 用 AudioContext 產生提示音 |
+讓病患在等候看診期間可以自由離開，快輪到時自動收到提醒通知。
 
-### 爬蟲 scraper.py
-| 問題（v1）| 解決（v2）|
-|---|---|
-| CSS selector 為假的 `.clinic-card` | 整合 20+ 個真實醫院 selector 規則 |
-| 只有靜態抓取 | 靜態失敗自動 fallback 到 Playwright 動態模式 |
-| 沒有 ETA 計算 | QueueMonitor 類別內建歷史速度計算 |
-| 監控邏輯寫死 | 命令列參數化，支援任意醫院網址 |
+---
+
+## 目前檔案結構
+
+```
+hospital-netlify/
+├── index.html                  ← 前端主頁面（三步驟流程）
+├── netlify.toml                ← Netlify 部署設定
+├── netlify/
+│   └── functions/
+│       └── scrape.js           ← 後端爬蟲 API（供其他醫院使用）
+└── architecture.md             ← 本文件
+```
 
 ---
 
 ## 系統架構
 
+### 國軍桃園（目前上線）
+
 ```
-┌─────────────────────────────────────┐
-│           手機瀏覽器 / App           │
-│  index.html                         │
-│  ├── 設定：醫院URL、我的號碼         │
-│  ├── setInterval 每 N 秒呼叫         │
-│  │   └── fetch(CORS proxy)           │
-│  │       └── 解析 HTML 取得號碼      │
-│  ├── 計算 ETA、剩餘號碼              │
-│  └── 觸發：Notification + 聲音       │
-└──────────────┬──────────────────────┘
-               │ HTTPS
-┌──────────────▼──────────────────────┐
-│         CORS Proxy (暫用)            │
-│  api.allorigins.win                  │
-│  （正式版換成自己的後端 /api/scrape）│
-└──────────────┬──────────────────────┘
-               │ HTTP
-┌──────────────▼──────────────────────┐
-│       醫院即時看診進度網頁            │
-│  https://www.aftygh.gov.tw/opd/      │
-└─────────────────────────────────────┘
+使用者手機瀏覽器
+      ↓ fetch（直接）
+Cloudflare Worker
+aftygh-proxy.owen163.workers.dev
+      ↓ 轉發請求
+www.aftygh.gov.tw/opd/opdservice.php
+      ↓ 回傳 HTML input 格式資料
+前端解析 → 顯示診間清單 → 用戶選擇 → 開始監控 → 推播通知
 ```
 
----
+**為什麼要用 Cloudflare Worker？**
+- 醫院網站有 Cloudflare 防護，Netlify 伺服器 IP 會被封鎖（403）
+- 使用者瀏覽器直接打 API 會被 CORS 擋住
+- Cloudflare Worker 跑在 Cloudflare 內部網路，不會被擋，同時幫前端加上 CORS header
 
-## 爬蟲策略（雙模式）
+### 其他醫院（待新增）
 
-### 模式 A：靜態（requests + BeautifulSoup）
-- 速度快、資源少
-- 適合伺服器端渲染的醫院頁面
-
-### 模式 B：動態（Playwright headless）
-- 靜態解析不到號碼時自動啟用
-- 適合 JS 動態渲染頁面（React/Vue 前端）
-
-### 解析順序
-1. 嘗試已知醫院 CSS selector（20+ 條規則）
-2. 用 regex 全文搜尋（中文/英文叫號字樣）
-3. 啟發式：找頁面上獨立的 1~3 位數數字
-
----
-
-## 已收錄醫院 Selector
-
-| 醫院系統 | CSS Selector |
-|---|---|
-| 台大系統 | `.current-no`, `.nowNo`, `#nowNo` |
-| 長庚系統 | `.clinicNowNo`, `[id*="NowNo"]` |
-| 馬偕系統 | `[id*="curno"]` |
-| 衛福部/國軍 | `.now_num`, `.call_num`, `.opdNowNo` |
-| 台北聯合 | `.nowno`, `#nowno` |
-
----
-
-## 命令列使用方式
-
-```bash
-# 安裝依賴
-pip install requests beautifulsoup4 playwright
-playwright install chromium
-
-# 測試是否能抓到號碼
-python scraper.py --url "https://www.aftygh.gov.tw/opd/" --my-number 117 --test
-
-# 開始監控（每60秒，快到5號提醒）
-python scraper.py --url "https://www.aftygh.gov.tw/opd/" --my-number 117 --alert-before 5 --interval 60
+```
+使用者手機瀏覽器
+      ↓ fetch
+Netlify Function /api/scrape
+      ↓ 伺服器端抓取
+各醫院即時看診進度網頁
+      ↓ 解析 HTML table
+回傳 JSON 診間清單
 ```
 
 ---
 
-## 待辦事項（正式產品）
+## API 資料格式
 
-- [ ] 後端 API 伺服器（取代 allorigins CORS proxy）
+### opdservice.php 回傳格式
+
+HTML input 欄位，每個診間索引 i 對應：
+
+| 欄位 | 說明 | 範例 |
+|---|---|---|
+| `clinname{i}` | 診間名稱 | 家醫科、骨科一診 |
+| `drname{i}` | 醫生姓名 | 張永宗 |
+| `oncallnum{i}` | 目前叫號號碼 | 56 |
+| `nowroomnum{i}` | 診間編號 | 0101 |
+| `divnname{i}` | 科別大分類 | 內科、外科、骨科 |
+| `timetype{i}` | 類型 | 1=門診, 4=領藥 |
+| `totalidx` | 總診間數 | 23 |
+
+---
+
+## 使用者流程
+
+```
+STEP 1 選醫院
+  └─ 點選「804 桃園國軍總醫院」
+  └─ 按「查詢即時診間資訊」
+  └─ 系統透過 Cloudflare Worker 抓取即時資料
+
+STEP 2 選診間
+  └─ 依科別分組顯示所有診間
+  └─ 每張卡片顯示：診間名稱、醫生、目前號碼
+  └─ 可搜尋科別或醫生姓名
+  └─ 點選診間進入下一步
+
+STEP 3 填號碼
+  └─ 輸入自己的掛號號碼
+  └─ 設定提前幾號提醒
+  └─ 設定輪詢間隔（建議 60 秒）
+  └─ 按「開始監控」
+
+監控中
+  └─ 每 N 秒自動更新一次號碼
+  └─ 顯示進度條、預估等待時間
+  └─ 偵測跳號（超過 10 號自動警告）
+  └─ 快輪到時：推播通知 + 聲音 + 頁面警報
+```
+
+---
+
+## 新增其他醫院步驟
+
+### A. 有 JSON API 的醫院（最穩定）
+1. F12 → Network → XHR 找到 API 網址
+2. 在 `HOSPITALS` 陣列新增 `directApi` 和對應的 `directParser`
+3. 在前端寫對應的解析函式
+
+### B. 需要 Cloudflare Worker 的醫院
+1. 在 Cloudflare 新建一個 Worker，修改目標 URL
+2. 在 `HOSPITALS` 陣列設定 `directApi` 指向新 Worker
+
+### C. 一般 HTML table 醫院（走後端）
+1. 分析網頁 table 欄位順序
+2. 在 `scrape.js` 的 `HOSPITAL_PARSERS` 新增規則
+3. 在 `HOSPITALS` 陣列新增醫院資訊
+
+---
+
+## 技術堆疊
+
+| 層級 | 技術 | 用途 |
+|---|---|---|
+| 前端 | 純 HTML/CSS/JS | 使用者介面、三步驟流程 |
+| Proxy | Cloudflare Workers（免費） | 轉發國軍桃園 API，解決 CORS |
+| 後端 | Netlify Functions（免費） | 其他醫院的伺服器端爬蟲 |
+| 部署 | Netlify + GitHub | 自動部署 |
+| 通知 | Web Notification API | 瀏覽器推播通知 |
+
+---
+
+## 待辦事項
+
+- [ ] 新增更多醫院支援
 - [ ] LINE Bot 推播整合
-- [ ] FCM Push Notification（原生 App）
-- [ ] Google Maps Distance Matrix API 整合
-- [ ] 新增更多醫院 selector 規則
-- [ ] 跳號後自動縮短輪詢間隔
+- [ ] 多人共享等候室（家人同步收到通知）
+- [ ] Google Maps 路程時間整合
+- [ ] 醫院端 B2B 白標方案
